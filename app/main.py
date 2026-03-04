@@ -24,3 +24,5 @@ app.include_router(jobs.router)
 
 # Database setup
 job.Base.metadata.create_all(bind=engine)
+
+

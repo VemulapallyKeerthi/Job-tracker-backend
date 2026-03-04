@@ -119,7 +119,7 @@ def mark_as_interviewing(job_id: int, db: Session = Depends(get_db)):
     job = db.query(Job).filter(Job.id == job_id).first()
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
-    job.status = JobStatus.interviewing
+    job.status = JobStatus.interview
     db.commit()
     db.refresh(job)
     return job

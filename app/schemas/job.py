@@ -5,7 +5,7 @@ from datetime import date
 class JobStatus(str, Enum):
     saved = "saved"
     applied = "applied"
-    interviewing = "interviewing"
+    interviewing = "interview"
     offer = "offer"
     rejected = "rejected"
 
