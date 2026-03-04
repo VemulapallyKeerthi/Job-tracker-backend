@@ -19,6 +19,10 @@ app.add_middleware(
 def root():
     return {"message": "Job Tracker API is running"}
 
+@app.head("/")
+def root_head():
+    return {"message": "Job Tracker API is running"}
+
 # Routers come AFTER CORS
 app.include_router(jobs.router)
 
