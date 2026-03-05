@@ -1,5 +1,5 @@
+from playwright.sync_api import sync_playwright
 import requests
-from bs4 import BeautifulSoup
 
 API_URL = "https://job-tracker-backend-whae.onrender.com/jobs"
 
@@ -8,34 +8,40 @@ def send_to_backend(job):
     print(resp.status_code, resp.json())
 
 def scrape_indeed():
-    search_url = (
-    "https://www.indeed.com/jobs"
-    "?q=&l=United+States")
+    print("Scraper started")
 
-    page = requests.get(search_url, headers={"User-Agent": "Mozilla/5.0"})
-    soup = BeautifulSoup(page.text, "html.parser")
+    with sync_playwright() as p:
+        browser = p.chromium.launch(headless=True)
+        page = browser.new_page()
 
-    job_cards = soup.select("div.job_seen_beacon")
+        # Load all jobs in the US
+        page.goto("https://www.indeed.com/jobs?q=&l=United+States")
 
-    for card in job_cards:
-        title_el = card.select_one("h2 span")
-        company_el = card.select_one("span.companyName")
-        location_el = card.select_one("div.companyLocation")
-        link_el = card.select_one("a")
+        # Wait for job cards to load
+        page.wait_for_selector("div.job_seen_beacon")
 
-        if not (title_el and company_el and location_el and link_el):
-            continue
+        cards = page.query_selector_all("div.job_seen_beacon")
+        print("Found job cards:", len(cards))
 
-        job = {
-            "title": title_el.get_text(strip=True),
-            "company": company_el.get_text(strip=True),
-            "location": location_el.get_text(strip=True),
-            "status": "saved",
-        }
+        for card in cards:
+            title_el = card.query_selector("h2 span")
+            company_el = card.query_selector("span.companyName")
+            location_el = card.query_selector("div.companyLocation")
 
-        print("Sending job:", job)
-        send_to_backend(job)
+            if not (title_el and company_el and location_el):
+                continue
+
+            job = {
+                "title": title_el.inner_text().strip(),
+                "company": company_el.inner_text().strip(),
+                "location": location_el.inner_text().strip(),
+                "status": "saved",
+            }
+
+            print("Sending job:", job)
+            send_to_backend(job)
+
+        browser.close()
 
 if __name__ == "__main__":
     scrape_indeed()
-
