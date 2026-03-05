@@ -9,9 +9,8 @@ def send_to_backend(job):
 
 def scrape_indeed():
     search_url = (
-        "https://www.indeed.com/jobs"
-        "?q=data+analyst&l=United+States&sc=0kf%3Aexplvl(ENTRY_LEVEL)%3B"
-    )
+    "https://www.indeed.com/jobs"
+    "?q=&l=United+States")
 
     page = requests.get(search_url, headers={"User-Agent": "Mozilla/5.0"})
     soup = BeautifulSoup(page.text, "html.parser")
@@ -39,3 +38,4 @@ def scrape_indeed():
 
 if __name__ == "__main__":
     scrape_indeed()
+
