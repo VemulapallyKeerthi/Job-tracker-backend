@@ -1,7 +1,7 @@
 import requests
 from bs4 import BeautifulSoup
 
-API_URL = "https://job-tracker-backend-krnx.onrender.com/jobs"
+API_URL = "https://job-tracker-backend-whae.onrender.com/jobs"
 
 def send_to_backend(job):
     resp = requests.post(API_URL, json=job)
