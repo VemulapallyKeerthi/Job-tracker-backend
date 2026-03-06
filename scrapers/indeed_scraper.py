@@ -2,7 +2,7 @@ from playwright.sync_api import sync_playwright
 import requests
 import time
 
-API_URL = "https://job-tracker-backend-whae.onrender.com/jobs"
+API_URL = "http://127.0.0.1:8001/jobs"
 
 def send_to_backend(job):
     resp = requests.post(API_URL, json=job)
