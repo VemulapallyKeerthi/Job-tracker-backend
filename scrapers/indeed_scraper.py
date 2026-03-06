@@ -12,7 +12,10 @@ def scrape_indeed():
     print("Scraper started")
 
     with sync_playwright() as p:
-        browser = p.chromium.launch(headless=False)  # run visibly
+        # Run in visible mode so we can debug if needed
+        browser = p.chromium.launch(headless=False)
+
+        # Use a realistic browser user agent
         page = browser.new_page(
             user_agent=(
                 "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
@@ -21,15 +24,16 @@ def scrape_indeed():
             )
         )
 
+        # Use a broad but valid search keyword
         url = "https://www.indeed.com/jobs?q=data&l=United+States"
         page.goto(url)
 
         print("Page loaded:", page.title())
 
-        # Give Indeed time to load dynamic content
+        # Allow dynamic content to load
         time.sleep(5)
 
-        # Try multiple selectors (Indeed uses different layouts)
+        # Indeed uses multiple layouts; try all
         selectors = [
             "div.job_seen_beacon",
             "td.resultContent",
@@ -51,6 +55,7 @@ def scrape_indeed():
             browser.close()
             return
 
+        # Extract job data and send to backend
         for card in cards:
             title_el = card.query_selector("h2 span")
             company_el = card.query_selector("span.companyName")
