@@ -21,7 +21,7 @@ def scrape_indeed():
             )
         )
 
-        url = "https://www.indeed.com/jobs?q=&l=United+States"
+        url = "https://www.indeed.com/jobs?q=data&l=United+States"
         page.goto(url)
 
         print("Page loaded:", page.title())
