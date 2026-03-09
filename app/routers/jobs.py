@@ -7,7 +7,7 @@ from app.schemas.job import JobBase, JobResponse, JobStatus
 
 router = APIRouter(prefix="/jobs", tags=["Jobs"])
 
-# Database session dependency
+# ── DB dependency ─────────────────────────────────────────────────────────────
 def get_db():
     db = SessionLocal()
     try:
@@ -15,14 +15,16 @@ def get_db():
     finally:
         db.close()
 
-# GET /jobs → return all jobs
+
+# ── GET /jobs ─────────────────────────────────────────────────────────────────
 @router.get("/", response_model=list[JobResponse])
 def get_jobs(
-    status: str | None = None,
-    company: str | None = None,
-    location: str | None = None,
-    title: str | None = None,
-    db: Session = Depends(get_db)
+    status   : str | None = None,
+    company  : str | None = None,
+    location : str | None = None,
+    title    : str | None = None,
+    source   : str | None = None,
+    db       : Session = Depends(get_db),
 ):
     query = db.query(Job)
 
@@ -33,11 +35,14 @@ def get_jobs(
     if location:
         query = query.filter(Job.location.ilike(f"%{location}%"))
     if title:
-        query = query.filter(Job.title.ilike(f"%title%"))
+        query = query.filter(Job.title.ilike(f"%{title}%"))   # ← was f"%title%" (bug)
+    if source:
+        query = query.filter(Job.source == source)
 
     return query.all()
 
-# ✅ NEW — GET /jobs/{job_id}
+
+# ── GET /jobs/{job_id} ────────────────────────────────────────────────────────
 @router.get("/{job_id}", response_model=JobResponse)
 def get_job(job_id: int, db: Session = Depends(get_db)):
     job = db.query(Job).filter(Job.id == job_id).first()
@@ -45,103 +50,78 @@ def get_job(job_id: int, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Job not found")
     return job
 
-# GET /jobs/{job_id} → return a single job
-@router.get("/{job_id}", response_model=JobResponse)
-def get_job(job_id: int, db: Session = Depends(get_db)):
-    job = db.query(Job).filter(Job.id == job_id).first()
-    if not job:
-        raise HTTPException(status_code=404, detail="Job not found")
-    return job
 
-# POST /jobs → create a new job
+# ── POST /jobs ────────────────────────────────────────────────────────────────
 @router.post("/", response_model=JobResponse)
 def create_job(job: JobBase, db: Session = Depends(get_db)):
-    new_job = Job(**job.dict())
+    data = job.model_dump(exclude={"url"})          # exclude alias field, use apply_link
+    new_job = Job(**data)
     db.add(new_job)
     db.commit()
     db.refresh(new_job)
     return new_job
 
-# UPDATE /jobs/{id}
+
+# ── PUT /jobs/{job_id} ────────────────────────────────────────────────────────
 @router.put("/{job_id}", response_model=JobResponse)
 def update_job(job_id: int, updated_job: JobBase, db: Session = Depends(get_db)):
     job = db.query(Job).filter(Job.id == job_id).first()
-
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
 
-    for key, value in updated_job.dict().items():
+    for key, value in updated_job.model_dump(exclude={"url"}).items():
         setattr(job, key, value)
 
     db.commit()
     db.refresh(job)
     return job
 
-# DELETE /jobs/{id}
+
+# ── DELETE /jobs/{job_id} ─────────────────────────────────────────────────────
 @router.delete("/{job_id}")
 def delete_job(job_id: int, db: Session = Depends(get_db)):
     job = db.query(Job).filter(Job.id == job_id).first()
-
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
-
     db.delete(job)
     db.commit()
     return {"message": "Job deleted successfully"}
 
-# PATCH /jobs/{id}/status
+
+# ── PATCH /jobs/{job_id}/status ───────────────────────────────────────────────
 @router.patch("/{job_id}/status", response_model=JobResponse)
 def update_job_status(job_id: int, status: JobStatus, db: Session = Depends(get_db)):
     job = db.query(Job).filter(Job.id == job_id).first()
-
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
-
     job.status = status
     db.commit()
     db.refresh(job)
     return job
 
-# Move job to "applied"
+
+# ── Status transition helpers ─────────────────────────────────────────────────
+def _transition(job_id: int, new_status: JobStatus, db: Session):
+    job = db.query(Job).filter(Job.id == job_id).first()
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+    job.status = new_status
+    db.commit()
+    db.refresh(job)
+    return job
+
 @router.post("/{job_id}/apply", response_model=JobResponse)
 def mark_as_applied(job_id: int, db: Session = Depends(get_db)):
-    job = db.query(Job).filter(Job.id == job_id).first()
-    if not job:
-        raise HTTPException(status_code=404, detail="Job not found")
-    job.status = JobStatus.applied
-    db.commit()
-    db.refresh(job)
-    return job
+    return _transition(job_id, JobStatus.applied, db)
 
-# Move job to "interviewing"
 @router.post("/{job_id}/interview", response_model=JobResponse)
 def mark_as_interviewing(job_id: int, db: Session = Depends(get_db)):
-    job = db.query(Job).filter(Job.id == job_id).first()
-    if not job:
-        raise HTTPException(status_code=404, detail="Job not found")
-    job.status = JobStatus.interview
-    db.commit()
-    db.refresh(job)
-    return job
+    return _transition(job_id, JobStatus.interview, db)
 
-# Move job to "offer"
 @router.post("/{job_id}/offer", response_model=JobResponse)
 def mark_as_offer(job_id: int, db: Session = Depends(get_db)):
-    job = db.query(Job).filter(Job.id == job_id).first()
-    if not job:
-        raise HTTPException(status_code=404, detail="Job not found")
-    job.status = JobStatus.offer
-    db.commit()
-    db.refresh(job)
-    return job
+    return _transition(job_id, JobStatus.offer, db)
 
-# Move job to "rejected"
 @router.post("/{job_id}/reject", response_model=JobResponse)
 def mark_as_rejected(job_id: int, db: Session = Depends(get_db)):
-    job = db.query(Job).filter(Job.id == job_id).first()
-    if not job:
-        raise HTTPException(status_code=404, detail="Job not found")
-    job.status = JobStatus.rejected
-    db.commit()
-    db.refresh(job)
-    return job
+    return _transition(job_id, JobStatus.rejected, db)
