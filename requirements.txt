@@ -11,9 +11,10 @@ alembic==1.13.1
 playwright==1.44.0
 requests==2.31.0
 
-# ML / NLP — pinned to versions with pre-built wheels for Python 3.11
-spacy==3.7.2
-en-core-web-sm @ https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.7.1/en_core_web_sm-3.7.1-py3-none-any.whl
+# ML / NLP
+# spacy 3.8.x supports typer>=0.12 — resolves conflict with fastapi 0.111.0
+spacy==3.8.3
+en-core-web-sm @ https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.8.0/en_core_web_sm-3.8.0-py3-none-any.whl
 
 # Utilities
 python-dotenv==1.0.1
