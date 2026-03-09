@@ -4,15 +4,16 @@ uvicorn[standard]==0.29.0
 
 # Database
 sqlalchemy==2.0.30
-psycopg2-binary==2.9.9        # PostgreSQL driver (ignored when using SQLite)
-alembic==1.13.1               # DB migrations
+psycopg2-binary==2.9.9
+alembic==1.13.1
 
 # Scraper
 playwright==1.44.0
 requests==2.31.0
 
-# ML / NLP
+# ML / NLP — pinned for Python 3.11 compatibility
 spacy==3.7.4
+numpy==1.26.4          # spaCy 3.7.x requires numpy <2.0
 
 # Utilities
-python-dotenv==1.0.1          # load .env locally
+python-dotenv==1.0.1

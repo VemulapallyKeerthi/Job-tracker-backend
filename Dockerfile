@@ -1,6 +1,6 @@
-FROM python:3.11-slim
+FROM python:3.11.9-slim-bookworm
 
-# Install system dependencies for Playwright + spaCy
+# Install system dependencies for Playwright + spaCy compilation
 RUN apt-get update && apt-get install -y \
     wget curl gcc g++ \
     libglib2.0-0 libnss3 libnspr4 libatk1.0-0 libatk-bridge2.0-0 \
@@ -9,6 +9,9 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
+
+# Upgrade pip first
+RUN pip install --upgrade pip
 
 # Install Python dependencies
 COPY requirements.txt .
