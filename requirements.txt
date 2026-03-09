@@ -11,9 +11,9 @@ alembic==1.13.1
 playwright==1.44.0
 requests==2.31.0
 
-# ML / NLP — pinned for Python 3.11 compatibility
-spacy==3.7.4
-numpy==1.26.4          # spaCy 3.7.x requires numpy <2.0
+# ML / NLP — pinned to versions with pre-built wheels for Python 3.11
+spacy==3.7.2
+en-core-web-sm @ https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.7.1/en_core_web_sm-3.7.1-py3-none-any.whl
 
 # Utilities
 python-dotenv==1.0.1

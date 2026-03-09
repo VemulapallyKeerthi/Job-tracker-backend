@@ -1,6 +1,6 @@
-FROM python:3.11.9-slim-bookworm
+FROM python:3.11-slim
 
-# Install system dependencies for Playwright + spaCy compilation
+# Install system dependencies for Playwright
 RUN apt-get update && apt-get install -y \
     wget curl gcc g++ \
     libglib2.0-0 libnss3 libnspr4 libatk1.0-0 libatk-bridge2.0-0 \
@@ -10,19 +10,13 @@ RUN apt-get update && apt-get install -y \
 
 WORKDIR /app
 
-# Upgrade pip first
-RUN pip install --upgrade pip
-
-# Install Python dependencies
+# Install Python dependencies (includes spaCy + en_core_web_sm wheel)
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Install Playwright browsers
 RUN playwright install chromium
 RUN playwright install-deps chromium
-
-# Download spaCy model
-RUN python -m spacy download en_core_web_sm
 
 # Copy app source
 COPY . .

@@ -21,9 +21,15 @@ def _get_nlp():
     try:
         return spacy.load("en_core_web_sm")
     except OSError:
-        raise RuntimeError(
-            "spaCy model not found. Run: python -m spacy download en_core_web_sm"
-        )
+        try:
+            import en_core_web_sm
+            return en_core_web_sm.load()
+        except ImportError:
+            raise RuntimeError(
+                "spaCy model not found. Add to requirements.txt:\n"
+                "en-core-web-sm @ https://github.com/explosion/spacy-models/"
+                "releases/download/en_core_web_sm-3.7.1/en_core_web_sm-3.7.1-py3-none-any.whl"
+            )
 
 
 # ── Skill taxonomy ────────────────────────────────────────────────────────────
