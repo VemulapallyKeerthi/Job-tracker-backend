@@ -21,7 +21,8 @@ import requests
 import time
 import os
 import logging
-from datetime import date
+import re
+from datetime import date, timedelta
 
 # ── Logging ───────────────────────────────────────────────────────────────────
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
@@ -73,6 +74,45 @@ def is_us_location(location: str) -> bool:
     return any(kw in loc for kw in US_KEYWORDS)
 
 
+# ── Date Parser ───────────────────────────────────────────────────────────────
+def parse_relative_date(text: str) -> str:
+    """
+    Convert relative date strings to ISO date strings.
+    Examples:
+      "Just posted" / "Today"  → today
+      "1 day ago"              → yesterday
+      "3 days ago"             → 3 days ago
+      "1 week ago"             → 7 days ago
+      "2 weeks ago"            → 14 days ago
+      "30+ days ago"           → 30 days ago
+      ""                       → today (fallback)
+    """
+    today = date.today()
+    if not text:
+        return today.isoformat()
+
+    text = text.lower().strip()
+
+    if any(w in text for w in ["just posted", "today", "just now", "new"]):
+        return today.isoformat()
+
+    # Match patterns like "3 days ago", "1 week ago", "2 weeks ago"
+    match = re.search(r"(\d+)\+?\s*(day|week|month|hour)", text)
+    if match:
+        num  = int(match.group(1))
+        unit = match.group(2)
+        if unit == "hour":
+            return today.isoformat()
+        elif unit == "day":
+            return (today - timedelta(days=num)).isoformat()
+        elif unit == "week":
+            return (today - timedelta(weeks=num)).isoformat()
+        elif unit == "month":
+            return (today - timedelta(days=num * 30)).isoformat()
+
+    return today.isoformat()  # fallback
+
+
 # ── Helpers ───────────────────────────────────────────────────────────────────
 def send_to_backend(job: dict) -> bool:
     """POST a job dict to the backend with retry + exponential backoff."""
@@ -80,6 +120,11 @@ def send_to_backend(job: dict) -> bool:
     if not is_us_location(job.get("location", "")):
         log.debug(f"  ↷ Skipping non-US job: {job['title']} @ {job['location']}")
         return False
+
+    # ── Parse posted_date from raw text or fallback to today ──
+    raw_date = job.pop("posted_date_raw", None)
+    if not job.get("posted_date"):
+        job["posted_date"] = parse_relative_date(raw_date) if raw_date else date.today().isoformat()
 
     key = (job["title"].lower(), job["company"].lower())
     if key in _seen:
@@ -185,6 +230,8 @@ def scrape_indeed(browser, location: str, query: str = SEARCH_QUERIES[0]) -> int
         job_url  = f"https://www.indeed.com{href}" if href.startswith("/") else href
         desc_el  = card.query_selector("div.job-snippet, div[class*='snippet']")
         desc     = safe_text(desc_el)
+        date_el  = card.query_selector("span.date, div[class*='date'], span[class*='posted'], table[class*='jobCardShelfContainer'] span")
+        raw_date = safe_text(date_el)
 
         if not (title and company):
             continue
@@ -192,6 +239,7 @@ def scrape_indeed(browser, location: str, query: str = SEARCH_QUERIES[0]) -> int
             "title": title, "company": company, "location": location_text,
             "status": "saved", "source": "indeed",
             "url": job_url, "description": desc,
+            "posted_date_raw": raw_date,
         }
         if send_to_backend(job):
             sent += 1
@@ -234,6 +282,8 @@ def scrape_dice(browser, location: str, query: str = SEARCH_QUERIES[0]) -> int:
         job_url  = f"https://www.dice.com{href}" if href.startswith("/") else href
         desc_el  = card.query_selector("div[data-cy='card-summary'], p.card-description")
         desc     = safe_text(desc_el)
+        date_el  = card.query_selector("span[data-cy='card-posted-date'], span[class*='posted'], div[class*='date']")
+        raw_date = safe_text(date_el)
 
         if not (title and company):
             continue
@@ -241,6 +291,7 @@ def scrape_dice(browser, location: str, query: str = SEARCH_QUERIES[0]) -> int:
             "title": title, "company": company, "location": location_text,
             "status": "saved", "source": "dice",
             "url": job_url, "description": desc,
+            "posted_date_raw": raw_date,
         }
         if send_to_backend(job):
             sent += 1
@@ -339,6 +390,8 @@ def scrape_linkedin(browser, location: str, query: str = SEARCH_QUERIES[0]) -> i
         job_url  = safe_attr(link_el, "href").split("?")[0]
         desc_el  = card.query_selector("p[class*='description'], div[class*='description']")
         desc     = safe_text(desc_el)
+        date_el  = card.query_selector("time, span[class*='listdate'], span[class*='posted-date'], div[class*='metadata'] span")
+        raw_date = safe_text(date_el) or safe_attr(date_el, "datetime") if date_el else ""
 
         if not (title and company):
             continue
@@ -346,6 +399,7 @@ def scrape_linkedin(browser, location: str, query: str = SEARCH_QUERIES[0]) -> i
             "title": title, "company": company, "location": location_text,
             "status": "saved", "source": "linkedin",
             "url": job_url, "description": desc,
+            "posted_date_raw": raw_date,
         }
         if send_to_backend(job):
             sent += 1
@@ -436,6 +490,8 @@ def scrape_glassdoor(browser, location: str, query: str = SEARCH_QUERIES[0]) -> 
         job_url  = f"https://www.glassdoor.com{href}" if href.startswith("/") else href
         desc_el  = card.query_selector("div[class*='jobDescriptionContent'], div[class*='description']")
         desc     = safe_text(desc_el)
+        date_el  = card.query_selector("div[class*='JobCard_jobAgeItem'], span[class*='posted'], div[class*='age']")
+        raw_date = safe_text(date_el)
 
         if not (title and company):
             continue
@@ -443,6 +499,7 @@ def scrape_glassdoor(browser, location: str, query: str = SEARCH_QUERIES[0]) -> 
             "title": title, "company": company, "location": location_text,
             "status": "saved", "source": "glassdoor",
             "url": job_url, "description": desc,
+            "posted_date_raw": raw_date,
         }
         if send_to_backend(job):
             sent += 1
@@ -512,3 +569,9 @@ def run_all():
 
 if __name__ == "__main__":
     run_all()
+
+
+
+
+
+
