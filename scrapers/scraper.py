@@ -21,6 +21,7 @@ import requests
 import time
 import os
 import logging
+from datetime import date
 
 # ── Logging ───────────────────────────────────────────────────────────────────
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
